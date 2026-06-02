@@ -1,0 +1,104 @@
+{
+  "tool": "edge_ai_profiler",
+  "model": "models\\yolov8n.onnx",
+  "source": "third_party\\opencv\\sources\\samples\\data\\messi5.jpg",
+  "provider": "cuda",
+  "preprocess_mode": "openmp",
+  "warmup_runs": 5,
+  "iterations": 30,
+  "input_size": [640, 640],
+  "cuda_device_id": 0,
+  "openmp_threads": 4,
+  "confidence_threshold": 0.250000,
+  "nms_threshold": 0.450000,
+  "input_node": "images",
+  "output_node": "output0",
+  "input_shape": [1, 3, 640, 640],
+  "output_shape": [1, 84, 8400],
+  "benchmark": {
+    "preprocess": {
+      "mean_ms": 2.323790,
+      "p50_ms": 2.243600,
+      "p95_ms": 2.739115,
+      "min_ms": 1.853400,
+      "max_ms": 4.969300
+    },
+    "inference": {
+      "mean_ms": 7.391560,
+      "p50_ms": 7.220150,
+      "p95_ms": 8.774025,
+      "min_ms": 6.339000,
+      "max_ms": 9.756200
+    },
+    "postprocess": {
+      "mean_ms": 0.781340,
+      "p50_ms": 0.692300,
+      "p95_ms": 1.053095,
+      "min_ms": 0.655500,
+      "max_ms": 1.263300
+    },
+    "total": {
+      "mean_ms": 10.496690,
+      "p50_ms": 10.518000,
+      "p95_ms": 12.420640,
+      "min_ms": 9.139600,
+      "max_ms": 12.726600
+    },
+    "throughput_fps": 95.268127,
+    "sample_count": 30
+  },
+  "last_frame": {
+    "detection_count": 8,
+    "render_ms": 0.005600,
+    "detections": [
+      {
+        "class_id": 32,
+        "label": "sports ball",
+        "confidence": 0.935447,
+        "box": {"x": 337, "y": 289, "width": 51, "height": 47}
+      },
+      {
+        "class_id": 0,
+        "label": "person",
+        "confidence": 0.888179,
+        "box": {"x": 71, "y": 60, "width": 386, "height": 278}
+      },
+      {
+        "class_id": 0,
+        "label": "person",
+        "confidence": 0.665425,
+        "box": {"x": 3, "y": 210, "width": 49, "height": 52}
+      },
+      {
+        "class_id": 0,
+        "label": "person",
+        "confidence": 0.494444,
+        "box": {"x": 116, "y": 213, "width": 49, "height": 47}
+      },
+      {
+        "class_id": 0,
+        "label": "person",
+        "confidence": 0.398757,
+        "box": {"x": 438, "y": 60, "width": 32, "height": 44}
+      },
+      {
+        "class_id": 0,
+        "label": "person",
+        "confidence": 0.397232,
+        "box": {"x": 52, "y": 208, "width": 58, "height": 52}
+      },
+      {
+        "class_id": 0,
+        "label": "person",
+        "confidence": 0.346416,
+        "box": {"x": 0, "y": 80, "width": 55, "height": 107}
+      },
+      {
+        "class_id": 0,
+        "label": "person",
+        "confidence": 0.337702,
+        "box": {"x": 401, "y": 60, "width": 39, "height": 44}
+      }
+    ]
+  }
+}

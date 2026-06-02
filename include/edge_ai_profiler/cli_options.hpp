@@ -18,6 +18,8 @@ enum class PreprocessMode {
 struct AppConfig {
     std::filesystem::path model_path{"models/yolov8n.onnx"};
     std::optional<std::filesystem::path> image_path;
+    std::optional<std::filesystem::path> json_report_path;
+    std::optional<std::filesystem::path> csv_report_path;
     ExecutionProvider provider{ExecutionProvider::Cpu};
     PreprocessMode preprocess_mode{PreprocessMode::Scalar};
     bool display_window{false};

@@ -66,6 +66,7 @@ include/edge_ai_profiler/preprocessor.hpp
 include/edge_ai_profiler/postprocessor.hpp
 include/edge_ai_profiler/renderer.hpp
 include/edge_ai_profiler/benchmark.hpp
+include/edge_ai_profiler/report_writer.hpp
 
 src/cli_options.cpp
 src/inference_engine.cpp
@@ -73,6 +74,7 @@ src/preprocessor.cpp
 src/postprocessor.cpp
 src/renderer.cpp
 src/benchmark.cpp
+src/report_writer.cpp
 src/main.cpp
 ```
 
@@ -170,6 +172,8 @@ build\Release\edge_ai_profiler.exe --help
 ```text
 --model <path>          ONNX model path. Default: models/yolov8n.onnx
 --image <path>          Input image path. If omitted, a synthetic frame is used.
+--report <path>         Write a JSON benchmark report.
+--csv <path>            Append one benchmark row to a CSV file.
 --provider <name>       Execution provider: cpu or cuda.
 --preprocess <mode>     Preprocessing mode: scalar or openmp.
 --display               Render detections with OpenCV imshow.
@@ -222,6 +226,52 @@ build\Release\edge_ai_profiler.exe `
   --warmup 5 `
   --iterations 50 `
   --conf 0.25
+```
+
+## Benchmark Export
+
+The profiler can persist benchmark results for reproducible comparison.
+
+JSON export writes a complete single-run report:
+
+```powershell
+build\Release\edge_ai_profiler.exe `
+  --model models\yolov8n.onnx `
+  --image third_party\opencv\sources\samples\data\messi5.jpg `
+  --provider cuda `
+  --preprocess scalar `
+  --warmup 5 `
+  --iterations 50 `
+  --conf 0.25 `
+  --report docs\benchmarks\cuda_scalar.json
+```
+
+CSV export appends one compact row per run, which is useful for side-by-side provider comparison:
+
+```powershell
+build\Release\edge_ai_profiler.exe `
+  --model models\yolov8n.onnx `
+  --image third_party\opencv\sources\samples\data\messi5.jpg `
+  --provider cpu `
+  --preprocess scalar `
+  --warmup 5 `
+  --iterations 50 `
+  --conf 0.25 `
+  --csv docs\benchmarks\phase6_comparison.csv
+```
+
+Recommended comparison set:
+
+```text
+CPU + scalar fused preprocessing
+CUDA + scalar fused preprocessing
+CUDA + OpenMP fused preprocessing with 4 threads
+```
+
+Example exported artifacts are stored under:
+
+```text
+docs/benchmarks/
 ```
 
 ## Benchmark Results
@@ -328,7 +378,7 @@ This keeps visualization as a replaceable boundary instead of a hardcoded side e
 ## Roadmap
 
 - Video stream mode with rolling latency windows.
-- CSV or JSON benchmark export.
+- Historical benchmark regression tracking.
 - Configurable ONNX input/output metadata validation.
 - Pinned host memory and I/O binding experiments for CUDA.
 - Dear ImGui renderer for live latency dashboards.

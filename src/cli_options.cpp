@@ -54,6 +54,10 @@ AppConfig ParseCommandLine(int argc, char** argv)
             config.model_path = RequireValue(i, argc, argv, option);
         } else if (option == "--image") {
             config.image_path = RequireValue(i, argc, argv, option);
+        } else if (option == "--report") {
+            config.json_report_path = RequireValue(i, argc, argv, option);
+        } else if (option == "--csv") {
+            config.csv_report_path = RequireValue(i, argc, argv, option);
         } else if (option == "--provider") {
             config.provider = ParseExecutionProvider(RequireValue(i, argc, argv, option));
         } else if (option == "--preprocess") {
@@ -114,6 +118,8 @@ void PrintUsage()
         << "Options:\n"
         << "  --model <path>       ONNX model path. Default: models/yolov8n.onnx\n"
         << "  --image <path>       Input image path. If omitted, a synthetic frame is used.\n"
+        << "  --report <path>      Write a JSON benchmark report.\n"
+        << "  --csv <path>         Append one benchmark row to a CSV file.\n"
         << "  --provider <name>    Execution provider: cpu or cuda. Default: cpu\n"
         << "  --preprocess <mode>  Preprocessing mode: scalar or openmp. Default: scalar\n"
         << "  --display            Render detections with OpenCV imshow.\n"

@@ -52,6 +52,7 @@ add_executable(edge_ai_profiler
     src/main.cpp
     src/postprocessor.cpp
     src/preprocessor.cpp
+    src/report_writer.cpp
     src/renderer.cpp
 )
 

@@ -12,6 +12,7 @@
 #include "edge_ai_profiler/inference_engine.hpp"
 #include "edge_ai_profiler/postprocessor.hpp"
 #include "edge_ai_profiler/preprocessor.hpp"
+#include "edge_ai_profiler/report_writer.hpp"
 #include "edge_ai_profiler/renderer.hpp"
 
 namespace {
@@ -143,6 +144,40 @@ void PrintReport(const edge_ai_profiler::AppConfig& config,
     }
 }
 
+std::vector<int64_t> ToVector(const std::array<int64_t, 4>& shape)
+{
+    return {shape.begin(), shape.end()};
+}
+
+edge_ai_profiler::BenchmarkExport BuildExportData(
+    const edge_ai_profiler::AppConfig& config,
+    const edge_ai_profiler::OnnxInferenceEngine& engine,
+    const edge_ai_profiler::FrameResult& result,
+    const edge_ai_profiler::PreprocessResult& input,
+    const edge_ai_profiler::TensorOutput& output,
+    const edge_ai_profiler::BenchmarkReport& report)
+{
+    return edge_ai_profiler::BenchmarkExport{
+        config.model_path,
+        SourceName(config),
+        engine.provider_name(),
+        edge_ai_profiler::ToString(config.preprocess_mode),
+        config.warmup_runs,
+        config.iterations,
+        config.input_width,
+        config.input_height,
+        config.cuda_device_id,
+        config.openmp_threads,
+        config.confidence_threshold,
+        config.nms_threshold,
+        engine.input_name(),
+        engine.output_name(),
+        ToVector(input.shape),
+        output.shape,
+        report,
+        result};
+}
+
 }  // namespace
 
 int main(int argc, char** argv)
@@ -205,6 +240,17 @@ int main(int argc, char** argv)
         result.timings.render_ms = ElapsedMilliseconds(before_render, after_render);
 
         PrintReport(config, engine, result, input, output, report);
+        const edge_ai_profiler::BenchmarkExport export_data =
+            BuildExportData(config, engine, result, input, output, report);
+
+        if (config.json_report_path.has_value()) {
+            edge_ai_profiler::WriteJsonReport(*config.json_report_path, export_data);
+            std::cout << "JSON report written: " << config.json_report_path->string() << '\n';
+        }
+        if (config.csv_report_path.has_value()) {
+            edge_ai_profiler::AppendCsvReport(*config.csv_report_path, export_data);
+            std::cout << "CSV row appended: " << config.csv_report_path->string() << '\n';
+        }
         return 0;
     } catch (const edge_ai_profiler::HelpRequested&) {
         edge_ai_profiler::PrintUsage();
