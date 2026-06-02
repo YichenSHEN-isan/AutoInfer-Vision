@@ -14,11 +14,11 @@ OpenCVRenderer::OpenCVRenderer(std::string window_name)
 {
 }
 
-void OpenCVRenderer::Render(const cv::Mat& frame, const FrameResult& result)
+void OpenCVRenderer::Render(const RenderPacket& packet)
 {
-    cv::Mat canvas = frame.clone();
+    cv::Mat canvas = packet.frame.clone();
 
-    for (const Detection& detection : result.detections) {
+    for (const Detection& detection : packet.result.detections) {
         cv::rectangle(canvas, detection.box, cv::Scalar(64, 220, 64), 2);
 
         std::ostringstream label_stream;
@@ -48,8 +48,9 @@ void OpenCVRenderer::Render(const cv::Mat& frame, const FrameResult& result)
     }
 
     std::ostringstream status_stream;
-    status_stream << "FPS " << std::fixed << std::setprecision(1) << result.timings.fps()
-                  << " | infer " << std::setprecision(2) << result.timings.inference_ms << " ms";
+    status_stream << "frame " << packet.frame_index
+                  << " | FPS " << std::fixed << std::setprecision(1) << packet.result.timings.fps()
+                  << " | infer " << std::setprecision(2) << packet.result.timings.inference_ms << " ms";
 
     cv::putText(
         canvas,
@@ -65,10 +66,9 @@ void OpenCVRenderer::Render(const cv::Mat& frame, const FrameResult& result)
     cv::waitKey(1);
 }
 
-void NullRenderer::Render(const cv::Mat& frame, const FrameResult& result)
+void NullRenderer::Render(const RenderPacket& packet)
 {
-    (void)frame;
-    (void)result;
+    (void)packet;
 }
 
 }  // namespace edge_ai_profiler

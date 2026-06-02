@@ -21,11 +21,12 @@ Current capabilities:
 
 - CPU and CUDA Execution Provider selection through runtime flags.
 - OpenCV-based image loading and preprocessing.
+- Fused BGR-to-RGB NCHW tensor conversion without an intermediate RGB image buffer.
 - YOLOv8 output decoding and NMS.
 - Per-stage latency reporting with mean, p50, p95, min, and max.
 - Warmup iterations separated from measured iterations.
 - Scalar and OpenMP preprocessing modes for controlled assessment.
-- Renderer abstraction through `IRenderer`, with `OpenCVRenderer` as the current implementation.
+- Renderer abstraction through `IRenderer` and `RenderPacket`, with `OpenCVRenderer` as the current implementation.
 
 ## Architecture
 
@@ -52,6 +53,7 @@ YoloPostprocessor
     v
 IRenderer
     - OpenCVRenderer for reference visualization
+    - RenderPacket carries frame, detections, timings, frame index, and timestamp
     - future Vulkan, OpenGL, or Dear ImGui renderer can be injected here
 ```
 
@@ -228,16 +230,16 @@ Measured on RTX 3060 Laptop with YOLOv8n ONNX and OpenCV sample image `messi5.jp
 
 | Provider | Preprocess Mode | Preprocess Mean | Inference Mean | Total Mean | Total p95 | Throughput |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| CPU | Scalar | 2.930 ms | 94.755 ms | 98.381 ms | 103.131 ms | 10.165 FPS |
-| CUDA | Scalar | 3.059 ms | 7.427 ms | 11.236 ms | 13.569 ms | 88.998 FPS |
-| CUDA | OpenMP, 4 threads | 2.387 ms | 8.077 ms | 11.194 ms | 21.188 ms | 89.335 FPS |
+| CPU | Scalar, fused | 2.645 ms | 93.353 ms | 96.675 ms | 105.988 ms | 10.344 FPS |
+| CUDA | Scalar, fused | 2.645 ms | 6.780 ms | 10.135 ms | 11.698 ms | 98.667 FPS |
+| CUDA | OpenMP, fused, 4 threads | 2.169 ms | 6.954 ms | 9.866 ms | 11.688 ms | 101.356 FPS |
 
 Interpretation:
 
-- CUDA reduces YOLOv8n inference latency from roughly 95 ms to roughly 7.4 ms on the tested laptop GPU.
+- CUDA reduces YOLOv8n inference latency from roughly 93 ms to roughly 6.8 ms on the tested laptop GPU.
 - After inference moves to CUDA, preprocessing becomes a visible portion of end-to-end latency.
-- OpenMP improves preprocessing mean latency, but it does not materially improve total throughput in this setup.
-- CUDA plus OpenMP shows worse p95 latency, likely due to CPU scheduling jitter, memory bandwidth pressure, and CUDA runtime launch/copy coordination competing with OpenMP worker threads.
+- Fusing BGR-to-RGB color conversion with HWC-to-NCHW layout conversion removes one intermediate image buffer and one full-frame memory pass.
+- OpenMP improves preprocessing mean latency further, but it remains an explicit benchmark mode because CPU scheduling behavior can affect tail latency on laptop-class hardware.
 
 ## Preprocessing Design
 
@@ -258,9 +260,7 @@ The profiler explicitly performs:
 ```text
 BGR uint8 HWC
   -> letterbox resize
-  -> RGB
-  -> normalize to [0, 1]
-  -> NCHW float tensor
+  -> fused BGR read, RGB reorder, normalize to [0, 1], NCHW float tensor write
 ```
 
 The core tensor write pattern is:
@@ -271,17 +271,25 @@ tensor[1 * H * W + y * W + x] = G / 255.0f;
 tensor[2 * H * W + y * W + x] = B / 255.0f;
 ```
 
-This conversion is memory-sensitive because it reads interleaved pixels and writes three separate planar regions. For 640x640 images, scalar preprocessing is the deterministic baseline. OpenMP is available as an explicit benchmark mode, not as the default behavior.
+This conversion is memory-sensitive because it reads interleaved pixels and writes three separate planar regions. The implementation fuses color conversion and layout conversion into a single pass after letterbox resize, avoiding an intermediate RGB `cv::Mat`. For 640x640 images, scalar preprocessing is the deterministic baseline. OpenMP is available as an explicit benchmark mode, not as the default behavior.
 
 ## Renderer Interface
 
 Rendering is intentionally decoupled from the inference loop:
 
 ```cpp
+struct RenderPacket {
+    cv::Mat frame;
+    FrameResult result;
+    int64_t frame_index;
+    double timestamp_ms;
+    std::string source_name;
+};
+
 class IRenderer {
 public:
     virtual ~IRenderer() = default;
-    virtual void Render(const cv::Mat& frame, const FrameResult& result) = 0;
+    virtual void Render(const RenderPacket& packet) = 0;
 };
 ```
 
@@ -292,12 +300,27 @@ OpenCVRenderer
 NullRenderer
 ```
 
-This design keeps the inference and profiling pipeline independent from the visualization backend. A future Vulkan, OpenGL, or Dear ImGui renderer can be injected without changing preprocessing, inference, or postprocessing code.
+This design keeps the inference and profiling pipeline independent from the visualization backend. A future Vulkan, OpenGL, Dear ImGui, or 3D scene renderer can be injected without changing preprocessing, inference, or postprocessing code.
+
+## Future 3D Visualization Pipeline
+
+The current renderer displays 2D boxes and latency metadata on top of the input frame. The `RenderPacket` contract is intentionally broader than the current OpenCV implementation so that future renderers can map the same AI output into richer visual surfaces:
+
+```text
+RenderPacket
+  -> OpenCVRenderer: 2D annotated frame
+  -> ImGuiRenderer: live profiling dashboard
+  -> OpenGL/VulkanRenderer: animated 3D scene overlay
+  -> BEV-style renderer: object positions, trails, and timing HUD
+```
+
+This keeps visualization as a replaceable boundary instead of a hardcoded side effect inside the inference loop.
 
 ## Engineering Notes
 
 - The C++ runtime does not depend on Python.
 - The profiler uses fixed input shape by default to keep latency measurements stable.
+- Preprocessing fuses color conversion and tensor layout conversion to reduce memory traffic.
 - Warmup iterations are excluded to avoid measuring initial graph optimization, memory allocation, and CUDA context setup.
 - Render time is reported separately and excluded from benchmark throughput.
 - CUDA provider initialization fails fast with a diagnostic message if CUDA or cuDNN runtime DLLs are missing.

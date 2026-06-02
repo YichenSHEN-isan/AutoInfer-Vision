@@ -47,6 +47,11 @@ cv::Mat LoadFrame(const edge_ai_profiler::AppConfig& config)
     return synthetic;
 }
 
+std::string SourceName(const edge_ai_profiler::AppConfig& config)
+{
+    return config.image_path.has_value() ? config.image_path->string() : "synthetic";
+}
+
 edge_ai_profiler::FrameResult RunOnce(
     const cv::Mat& frame,
     const edge_ai_profiler::ImagePreprocessor& preprocessor,
@@ -189,7 +194,12 @@ int main(int argc, char** argv)
         const edge_ai_profiler::BenchmarkReport report = recorder.Summarize();
 
         auto before_render = Clock::now();
-        renderer->Render(frame, result);
+        renderer->Render(edge_ai_profiler::RenderPacket{
+            frame,
+            result,
+            0,
+            0.0,
+            SourceName(config)});
         auto after_render = Clock::now();
 
         result.timings.render_ms = ElapsedMilliseconds(before_render, after_render);
